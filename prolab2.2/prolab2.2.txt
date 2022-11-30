@@ -1,0 +1,223 @@
+#include "LiquidCrystal.h"
+#include <Keypad.h>
+
+LiquidCrystal lcd(13, 12, 11, 10, 9, 8, 7);
+
+float temperature = 0.0;
+float flame = 0.0;
+float motion = 0.0;
+bool didDisplayTemperatureChangeInfo = false;
+int buzzerPin = 22;
+int lampPin = 23;
+int greenLedPin = 24;
+int redLedPin = 25;
+
+const byte ROWS = 4; //four rows
+const byte COLS = 3; //three columns
+
+char keys[ROWS][COLS] = {
+    {'1','2','3'},
+    {'4','5','6'},
+    {'7','8','9'},
+    {'*','0','#'}
+};
+
+char keypressed;
+char code[]= {'0','0','0','0'};
+
+short a=0, i=0, s=0, j=0;
+
+byte rowPins[ROWS] = {29, 30, 31, 32};
+byte colPins[COLS] = {28, 27, 26};
+
+Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+
+void setup() {
+   lcd.begin(16, 2);
+   setOutputPins();
+}
+
+void loop() {  
+  checkTemp();
+  checkFlame();
+  checkMotion();
+  delay(100);
+  checkKeypad();
+  delay(200);
+}
+
+void setOutputPins() {
+   pinMode(22, OUTPUT);
+   pinMode(23, OUTPUT);
+   pinMode(24, OUTPUT);
+   pinMode(25, OUTPUT);
+}
+
+void checkTemp() {
+  int analog_value = analogRead(A0);
+  temperature = (analog_value); 
+  displayTemp();
+}
+
+void checkFlame() {
+  int analog_value = analogRead(A1);
+  flame = (analog_value); 
+  if (flame > 1) {
+    digitalWrite(buzzerPin, HIGH);
+  } else {
+    digitalWrite(buzzerPin, LOW);
+  }
+}
+
+void checkMotion() {
+  int analog_value = analogRead(A2);
+  motion = (analog_value); 
+  if (motion > 1) {
+    digitalWrite(lampPin, HIGH);
+  } else {
+    digitalWrite(lampPin, LOW);
+  }
+}
+
+void displayTemp() {
+  lcd.clear();
+  if (temperature < 20.0) {
+    if (didDisplayTemperatureChangeInfo == true) {
+      lcd.setCursor(0, 0);
+      lcd.print("AMBIENT TEMP IS: ");
+      lcd.setCursor(0, 1);
+      lcd.print(temperature);
+    } else {
+      lcd.setCursor(0, 0);
+      lcd.print("TEMP DROPPED TO: ");
+      lcd.setCursor(0, 1);
+      lcd.print(temperature);
+      didDisplayTemperatureChangeInfo = true;
+    }
+  } else if (temperature > 30.0) {
+    if (didDisplayTemperatureChangeInfo == true) {
+      lcd.setCursor(0, 0);
+      lcd.print("AMBIENT TEMP IS: ");
+      lcd.setCursor(0, 1);
+      lcd.print(temperature);
+    } else {
+      lcd.setCursor(0, 0);
+      lcd.print("TEMP RAISED TO: ");
+      lcd.setCursor(0, 1);
+      lcd.print(temperature);
+      didDisplayTemperatureChangeInfo = true;
+    }
+  } else {
+    lcd.setCursor(0, 0);
+    lcd.print("AMBIENT TEMP IS: ");
+    lcd.setCursor(0, 1);
+    lcd.print(temperature);
+    didDisplayTemperatureChangeInfo = false;
+  }
+}
+
+void checkKeypad() {
+  keypressed = NO_KEY;
+  keypressed = keypad.getKey();
+  if(keypressed == '*'){
+    checkPassword();
+  } else if(keypressed == '#'){
+    changePassword();
+  }  
+}
+
+void checkPassword() {
+  i=0, a=0, j=0;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("ENTER PASSWORD: ");
+  while(keypressed != '#'){
+    keypressed = keypad.getKey();
+    if(keypressed != NO_KEY && keypressed != '#'){
+      lcd.setCursor(j, 1);
+      lcd.print("*");
+      j++;
+      if(keypressed == code[i] && i < sizeof(code)){
+        a++;
+        i++;
+      } else {
+        a--;
+      }
+    }
+  }
+  keypressed = NO_KEY;
+  if(a==sizeof(code)) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("PASS IS CORRECT");
+    digitalWrite(greenLedPin, HIGH);
+    delay(100);
+    digitalWrite(greenLedPin, LOW);
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("PASS IS WRONG");
+    digitalWrite(redLedPin, HIGH);
+    delay(100);
+    digitalWrite(redLedPin, LOW);
+  }
+}
+
+void changePassword() {
+  i=0, a=0, j=0;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("ENTER PASSWORD: ");
+  while(keypressed != '*'){
+    keypressed = keypad.getKey();
+    if(keypressed != NO_KEY && keypressed != '*'){
+      lcd.setCursor(j, 1);
+      lcd.print("*");
+      j++;
+      if(keypressed == code[i] && i < sizeof(code)){
+        a++;
+        i++;
+      } else {
+        a--;
+      }
+    }
+  }
+  keypressed = NO_KEY;
+  if(a == sizeof(code)) {
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("PASS IS CORRECT");
+  digitalWrite(greenLedPin, HIGH);
+  delay(100);
+  digitalWrite(greenLedPin, LOW);
+  i=0;
+  j=0;
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("ENTER NEW PASS: ");
+  while(keypressed != '*'){
+    keypressed = keypad.getKey();
+    if(keypressed != NO_KEY && keypressed != '*' ){
+      code[i]=keypressed;
+      lcd.setCursor(j, 1);
+      lcd.print("*");
+      i++;
+      j++;
+    }
+  }
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("NEW PASS IS SET");
+  digitalWrite(greenLedPin, HIGH);
+  delay(100);
+  digitalWrite(greenLedPin, LOW);
+  keypressed = NO_KEY;
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("PASS IS WRONG");
+    digitalWrite(redLedPin, HIGH);
+    delay(100);
+    digitalWrite(redLedPin, LOW);
+  }
+}
